@@ -1,0 +1,11 @@
+meta {
+  name: StartAuthorization
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/accounts/{{accountId}}/authorize/start
+  body: none
+  auth: none
+}

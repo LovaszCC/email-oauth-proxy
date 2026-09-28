@@ -1,0 +1,24 @@
+meta {
+  name: CreateAccount
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/accounts
+  body: formUrlEncoded
+  auth: none
+}
+
+body:form-urlencoded {
+  email: user@example.com
+  provider: gmail
+  imap_host: imap.gmail.com
+  imap_port: 993
+  permission_url: https://accounts.google.com/o/oauth2/auth
+  token_url: https://oauth2.googleapis.com/token
+  scope: https://mail.google.com/
+  client_id: your-client-id
+  client_secret: your-client-secret
+  redirect_uri: http://localhost
+}

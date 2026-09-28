@@ -1,0 +1,15 @@
+meta {
+  name: CompleteAuthorization
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/accounts/{{accountId}}/authorize/complete
+  body: formUrlEncoded
+  auth: none
+}
+
+body:form-urlencoded {
+  redirect_url: http://localhost/?code=PASTE_CODE&state=PASTE_STATE
+}
