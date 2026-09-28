@@ -56,6 +56,8 @@ Register it as a **desktop / native** application with redirect URI
    an error page – that is expected. Copy the whole address from the address bar.
 5. Paste it into the *Redirect URL* box → **Complete authorization**.
    The account list now shows *Authorized*. Tokens are refreshed automatically.
+6. The **Logs** page shows the last lines of the application log (refresh results,
+   rejected logins, errors) without shell access.
 
 ## Mail client setup
 
@@ -80,6 +82,7 @@ Register it as a **desktop / native** application with redirect URI
 | `WEB_HOST` / `WEB_PORT` | `0.0.0.0` / `8080` | web UI |
 | `DATA_DIR` | `/data` | holds `proxy.db` (SQLite) – mount a volume |
 | `LOG_LEVEL` | `INFO` | |
+| `LOG_BUFFER_SIZE` | `1000` | log lines kept in memory for the **Logs** page |
 | `REFRESH_INTERVAL` | `3600` | seconds between background token refresh runs; every authorized account is refreshed before its access token expires, so inactive accounts stay valid |
 
 ## Security notes

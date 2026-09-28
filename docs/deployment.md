@@ -150,6 +150,7 @@ the container disconnects mail clients cleanly – they reconnect on their own.
 | Need | Command |
 |---|---|
 | Logs | `docker compose logs -f --tail=200` |
+| Logs without SSH | web UI → **Logs** (last `LOG_BUFFER_SIZE` lines, in memory, filter by level/text) |
 | More detail | set `LOG_LEVEL=DEBUG`, `docker compose up -d` |
 | Health | `curl -s http://127.0.0.1:8080/api/health` (also the Docker `HEALTHCHECK`) |
 | Test IMAP path | `printf 'A1 CAPABILITY\r\nA2 LOGOUT\r\n' \| nc 127.0.0.1 1993` |
