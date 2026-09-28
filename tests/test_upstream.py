@@ -100,3 +100,24 @@ async def test_readline_socket_error():
     reader.set_exception(ConnectionResetError("reset"))
     with pytest.raises(UpstreamConnectionError, match="reset"):
         await _readline(reader, 1.0)
+
+
+async def test_connect_timeout(monkeypatch, client_ssl):
+    async def hang(*args, **kwargs):
+        await asyncio.sleep(10)
+
+    monkeypatch.setattr(asyncio, "open_connection", hang)
+    with pytest.raises(UpstreamConnectionError, match="Timed out connecting"):
+        await connect_and_authenticate(
+            "localhost", 993, "u", "t", ssl_context=client_ssl, timeout=0.05
+        )
+
+
+def test_strip_response_code():
+    from app.proxy.upstream import _strip_response_code
+
+    assert _strip_response_code("NO [AUTHENTICATIONFAILED] Invalid credentials") == (
+        "Invalid credentials"
+    )
+    assert _strip_response_code("BAD Syntax error") == "Syntax error"
+    assert _strip_response_code("NO") == "NO"

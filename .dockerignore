@@ -1,0 +1,11 @@
+.venv
+.git
+.superpowers
+tests
+docs
+EmailOauth2ProxyBrunoCollection
+.pytest_cache
+.ruff_cache
+__pycache__
+*.db
+.env
