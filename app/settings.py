@@ -16,6 +16,7 @@ class Settings(BaseSettings):
     data_dir: Path = Path("/data")
     log_level: str = "INFO"
     refresh_interval: int = 3600  # seconds between background token refresh runs
+    log_buffer_size: int = 1000  # log lines kept in memory for the web UI
 
     @property
     def database_url(self) -> str:
