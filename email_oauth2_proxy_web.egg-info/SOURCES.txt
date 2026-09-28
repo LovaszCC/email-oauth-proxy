@@ -1,0 +1,8 @@
+pyproject.toml
+app/__init__.py
+email_oauth2_proxy_web.egg-info/PKG-INFO
+email_oauth2_proxy_web.egg-info/SOURCES.txt
+email_oauth2_proxy_web.egg-info/dependency_links.txt
+email_oauth2_proxy_web.egg-info/entry_points.txt
+email_oauth2_proxy_web.egg-info/requires.txt
+email_oauth2_proxy_web.egg-info/top_level.txt

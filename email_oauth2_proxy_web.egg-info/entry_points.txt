@@ -1,0 +1,2 @@
+[console_scripts]
+email-oauth2-proxy-web = app.main:main
