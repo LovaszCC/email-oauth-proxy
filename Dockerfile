@@ -8,10 +8,10 @@ WORKDIR /srv
 COPY pyproject.toml README.md ./
 COPY app ./app
 RUN pip install --no-cache-dir . \
-    && useradd --system --uid 10001 --no-create-home proxy \
-    && mkdir -p /data && chown proxy:proxy /data
+    && useradd --system --uid 10001 --no-create-home emailproxy \
+    && mkdir -p /data && chown emailproxy:emailproxy /data
 
-USER proxy
+USER emailproxy
 VOLUME ["/data"]
 EXPOSE 8080 1993
 

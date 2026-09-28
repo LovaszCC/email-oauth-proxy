@@ -169,4 +169,4 @@ the container disconnects mail clients cleanly – they reconnect on their own.
   `SECRET_KEY`/`ADMIN_PASSWORD` or an invalid Fernet key aborts startup with a
   clear message.
 - **Permission denied on /data** – only when bind-mounting a host directory
-  instead of the named volume: `chown -R 10001:10001 <dir>`.
+  instead of the named volume: `chown -R 10001:10001 <dir>  (user `emailproxy`)`.
