@@ -72,3 +72,46 @@ def server_ssl(tls_cert) -> ssl.SSLContext:
 @pytest.fixture(scope="session")
 def client_ssl(tls_cert) -> ssl.SSLContext:
     return ssl.create_default_context(cafile=str(tls_cert[0]))
+
+
+# -- web app fixtures ------------------------------------------------------------------------
+
+from asgi_lifespan import LifespanManager  # noqa: E402
+from httpx import ASGITransport, AsyncClient  # noqa: E402
+
+from app.main import create_app  # noqa: E402
+from app.settings import Settings  # noqa: E402
+
+
+@pytest.fixture
+def app_settings(tmp_path, fernet_key) -> Settings:
+    return Settings(
+        _env_file=None,
+        admin_user="admin",
+        admin_password="pw",
+        secret_key=fernet_key,
+        imap_host="127.0.0.1",
+        imap_port=0,
+        data_dir=tmp_path / "data",
+    )
+
+
+@pytest.fixture
+async def app(app_settings):
+    application = create_app(app_settings)
+    async with LifespanManager(application):
+        yield application
+
+
+@pytest.fixture
+async def client(app):
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test") as c:
+        yield c
+
+
+@pytest.fixture
+async def admin(client):
+    response = await client.post("/login", data={"username": "admin", "password": "pw"})
+    assert response.status_code == 303
+    return client
