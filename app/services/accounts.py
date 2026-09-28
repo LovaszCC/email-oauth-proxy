@@ -79,6 +79,7 @@ class AccountService:
         self._apply(account, data)
         if not keep_secret:
             account.client_secret_enc = self._encrypt_secret(data.client_secret)
+            account.last_error = None  # a replaced secret is the usual fix for a refresh error
         if credentials_changed:
             account.clear_tokens()
         await self._session.flush()

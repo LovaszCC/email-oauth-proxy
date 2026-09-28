@@ -166,7 +166,8 @@ async def test_refresh_rejected_keeps_tokens_and_logs(authenticator, db, crypto,
     with caplog.at_level(logging.WARNING), pytest.raises(LoginRejected) as info:
         await authenticator.authenticate("user@example.com")
     assert info.value.code == "AUTHENTICATIONFAILED"
-    assert info.value.message == "Token refresh rejected: secret expired"
+    # provider text stays off the IMAP wire (may be multi-line, leaks ids); fixed hint instead
+    assert info.value.message == "Token refresh rejected, check the client secret in the web UI"
     account = await load(db, crypto, account_id)
     assert account.refresh_token_enc is not None
     assert account.last_error == "Token refresh rejected: secret expired"

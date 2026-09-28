@@ -80,8 +80,17 @@ class TokenRefresher:
             candidates = [a.id for a in accounts if a.refresh_token_enc]
         for account_id in candidates:
             async with self._locks.get(account_id):
-                await self._refresh_one(account_id, report)
+                try:
+                    await self._refresh_one(account_id, report)
+                except Exception:
+                    # e.g. account deleted mid-flight, SQLite locked: log and go on to the rest
+                    report.failed.append(self._email_of(account_id, accounts))
+                    log.exception("Token refresh for account %s failed unexpectedly", account_id)
         return report
+
+    @staticmethod
+    def _email_of(account_id: int, accounts: list) -> str:
+        return next(a.email for a in accounts if a.id == account_id)
 
     async def _refresh_one(self, account_id: int, report: RefreshReport) -> None:
         deadline = self._now() + timedelta(seconds=self._interval) + REFRESH_MARGIN
@@ -114,6 +123,8 @@ class TokenRefresher:
                     "Token refresh for %s failed, will retry: %s", account.email, exc.message
                 )
             else:
+                await session.commit()
                 report.refreshed.append(account.email)
                 log.info("Refreshed token for %s", account.email)
+                return
             await session.commit()

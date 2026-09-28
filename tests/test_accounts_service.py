@@ -124,3 +124,17 @@ async def test_delete_and_count(db, crypto):
         await svc.delete(a)
         await session.commit()
         assert await svc.count() == (1, 1)
+
+
+async def test_update_replacing_secret_clears_last_error(db, crypto):
+    """After an expired secret is replaced the account must not stay in Error for an hour."""
+    async with db.session() as session:
+        svc = AccountService(session, crypto)
+        account = await svc.create(gmail_input())
+        account.refresh_token_enc = "rt"
+        account.last_error = "Token refresh rejected: secret expired"
+        await svc.update(account, gmail_input(), keep_secret=True)
+        assert account.last_error == "Token refresh rejected: secret expired"
+        await svc.update(account, gmail_input(client_secret="new"), keep_secret=False)
+        assert account.last_error is None
+        assert account.refresh_token_enc == "rt"

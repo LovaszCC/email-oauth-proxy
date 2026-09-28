@@ -326,3 +326,24 @@ async def test_refresh_4xx_without_error_code_keeps_tokens(service, crypto):
     with pytest.raises(RefreshRejected, match="HTTP 403"):
         await service.refresh(account)
     assert account.refresh_token_enc is not None
+
+
+@respx.mock
+async def test_provider_error_message_is_single_line(service, crypto):
+    account = make_account(crypto, refresh_token_enc=crypto.encrypt("RT"))
+    respx.post(TOKEN_URL).mock(
+        return_value=httpx.Response(
+            401,
+            json={
+                "error": "invalid_client",
+                "error_description": "AADSTS7000222: expired.\r\nTrace ID: abc\r\nTimestamp: x",
+            },
+        )
+    )
+    with pytest.raises(RefreshRejected) as info:
+        await service.refresh(account)
+    assert info.value.message == "AADSTS7000222: expired. Trace ID: abc Timestamp: x"
+    assert (
+        account.last_error
+        == "Token refresh rejected: AADSTS7000222: expired. Trace ID: abc Timestamp: x"
+    )

@@ -185,3 +185,25 @@ async def test_loop_survives_run_once_exception(db, crypto, http, locks, caplog)
         await refresher.stop()
     assert calls >= 2
     assert "db locked" in caplog.text
+
+
+@respx.mock
+async def test_run_once_isolates_unexpected_errors(refresher, db, crypto, caplog, monkeypatch):
+    """One account blowing up (e.g. deleted mid-flight, DB locked) must not skip the rest."""
+    await add(db, crypto, "a@example.com", refresh_token_enc=crypto.encrypt("RT"))
+    b = await add(db, crypto, "b@example.com", refresh_token_enc=crypto.encrypt("RT"))
+    respx.post(TOKEN_URL).mock(return_value=httpx.Response(200, json={"access_token": "NEW"}))
+    real_refresh = OAuthService.refresh
+
+    async def flaky(self, account):
+        if account.email == "a@example.com":
+            raise RuntimeError("database is locked")
+        return await real_refresh(self, account)
+
+    monkeypatch.setattr(OAuthService, "refresh", flaky)
+    with caplog.at_level(logging.INFO):
+        report = await refresher.run_once()
+    assert report.failed == ["a@example.com"]
+    assert report.refreshed == ["b@example.com"]
+    assert "database is locked" in caplog.text
+    assert crypto.decrypt((await get(db, crypto, b)).access_token_enc) == "NEW"

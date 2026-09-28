@@ -65,9 +65,11 @@ class ProxyAuthenticator:
                     ) from None
                 except RefreshRejected as exc:
                     await session.commit()
-                    message = f"Token refresh rejected: {exc.message}"
-                    self._reject(account.email, message)
-                    raise LoginRejected("AUTHENTICATIONFAILED", message) from None
+                    self._reject(account.email, f"Token refresh rejected: {exc.message}")
+                    raise LoginRejected(
+                        "AUTHENTICATIONFAILED",
+                        "Token refresh rejected, check the client secret in the web UI",
+                    ) from None
                 except ProviderUnavailable as exc:
                     await session.commit()
                     self._reject(account.email, f"token refresh failed: {exc.message}")

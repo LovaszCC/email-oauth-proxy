@@ -158,6 +158,8 @@ class OAuthService:
             raise ProviderUnavailable(f"HTTP {response.status_code} from token endpoint")
         if response.status_code >= 400 or "error" in payload:
             message = payload.get("error_description") or payload.get("error")
+            if message:
+                message = " ".join(str(message).split())  # providers send multi-line text
             raise OAuthError(
                 message or f"HTTP {response.status_code} from token endpoint",
                 payload.get("error"),
