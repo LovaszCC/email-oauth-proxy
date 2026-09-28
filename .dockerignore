@@ -9,3 +9,6 @@ EmailOauth2ProxyBrunoCollection
 __pycache__
 *.db
 .env
+build
+dist
+*.egg-info

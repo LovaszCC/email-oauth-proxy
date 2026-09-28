@@ -130,3 +130,25 @@ async def test_login_upstream_auth_error_sets_last_error(authenticator, db, cryp
     assert info.value.message == "status 400 (scope: x)"
     account = await load(db, crypto, account_id)
     assert account.last_error == "Upstream rejected authentication: status 400 (scope: x)"
+
+
+@respx.mock
+async def test_concurrent_logins_refresh_once(authenticator, db, crypto, connect):
+    """Mail clients open several connections at once; only one may hit the token endpoint."""
+    await create_account(
+        db,
+        crypto,
+        refresh_token_enc=crypto.encrypt("RT"),
+        access_token_enc=crypto.encrypt("OLD"),
+        access_token_expiry=NOW - timedelta(seconds=1),
+    )
+    route = respx.post(TOKEN_URL).mock(
+        return_value=httpx.Response(
+            200, json={"access_token": "NEW", "refresh_token": "RT2", "expires_in": 3600}
+        )
+    )
+    import asyncio
+
+    await asyncio.gather(*(authenticator.authenticate("user@example.com") for _ in range(3)))
+    assert route.call_count == 1
+    assert [call[3] for call in connect.calls] == ["NEW", "NEW", "NEW"]

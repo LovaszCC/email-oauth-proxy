@@ -9,3 +9,6 @@ htmlcov/
 data/
 *.db
 .superpowers/
+build/
+dist/
+*.egg-info/

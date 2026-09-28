@@ -220,3 +220,14 @@ async def test_pipe_ends_when_client_disconnects(client, proxy, echo):
     assert await send(client, b"A1 LOGIN user pw\r\n") == b"A1 OK Logged in\r\n"
     writer.close()
     await asyncio.wait_for(echo.eof.wait(), 2)
+
+
+async def test_stop_disconnects_active_clients(proxy):
+    """stop() must not wait for idle/piped clients to leave on their own (docker stop)."""
+    server, _ = proxy
+    reader, writer = await asyncio.open_connection("127.0.0.1", server.port)
+    assert await reader.readline() == GREETING
+    await asyncio.wait_for(server.stop(), 0.2)  # well under the 0.5 s idle timeout
+    assert await asyncio.wait_for(reader.read(), 1) == b""
+    assert server.listening is False
+    writer.close()
