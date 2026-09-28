@@ -11,7 +11,9 @@ from starlette.middleware.sessions import SessionMiddleware
 from app.crypto import Cryptographer
 from app.db import Database
 from app.proxy.server import ImapProxyServer, ProxyAuthenticator
+from app.services.locks import AccountLocks
 from app.services.oauth import OAuthService
+from app.services.refresh import TokenRefresher
 from app.settings import Settings
 from app.state import AppState
 from app.web.deps import NotAuthenticated
@@ -27,19 +29,25 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     db = Database(settings.database_url)
     http = httpx.AsyncClient(timeout=30.0)
     oauth = OAuthService(crypto, http)
+    locks = AccountLocks()
     proxy = ImapProxyServer(
-        settings.imap_host, settings.imap_port, ProxyAuthenticator(db, crypto, oauth)
+        settings.imap_host,
+        settings.imap_port,
+        ProxyAuthenticator(db, crypto, oauth, locks=locks),
     )
-    state = AppState(settings, db, crypto, http, oauth, proxy)
+    refresher = TokenRefresher(db, crypto, oauth, locks, interval=settings.refresh_interval)
+    state = AppState(settings, db, crypto, http, oauth, proxy, refresher)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
         settings.data_dir.mkdir(parents=True, exist_ok=True)
         await db.create_all()
         await proxy.start()
+        refresher.start()
         try:
             yield
         finally:
+            await refresher.stop()
             await proxy.stop()
             await http.aclose()
             await db.dispose()

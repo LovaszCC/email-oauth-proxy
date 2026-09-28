@@ -39,6 +39,8 @@ ADMIN_USER=admin
 ADMIN_PASSWORD=<long random password>
 SECRET_KEY=<the Fernet key from above>
 LOG_LEVEL=INFO
+# optional: seconds between background token refreshes (default 3600)
+# REFRESH_INTERVAL=3600
 ENV
 chmod 600 .env
 ```
@@ -152,6 +154,7 @@ the container disconnects mail clients cleanly – they reconnect on their own.
 | Health | `curl -s http://127.0.0.1:8080/api/health` (also the Docker `HEALTHCHECK`) |
 | Test IMAP path | `printf 'A1 CAPABILITY\r\nA2 LOGOUT\r\n' \| nc 127.0.0.1 1993` |
 | Rotate admin password | edit `.env`, `docker compose up -d` |
+| Token refresh problems | `docker compose logs \| grep "Token refresh"` – ERROR = fix the client secret (Edit page) or re-authorize, WARNING = provider unreachable, retried next run |
 | Account stuck in *Error* | open the account → *Authorize* → *Start authorization* again; the error text on the list page says why (refresh rejected, upstream rejected, …) |
 
 ## 9. Troubleshooting

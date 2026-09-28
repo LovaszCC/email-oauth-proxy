@@ -25,3 +25,14 @@ def test_create_app_reads_settings_from_env(monkeypatch, fernet_key, tmp_path):
 async def test_static_served(client):
     response = await client.get("/static/pico.min.css")
     assert response.status_code == 200
+
+
+async def test_lifespan_starts_and_stops_refresher(app_settings):
+    from asgi_lifespan import LifespanManager
+
+    application = create_app(app_settings)
+    container = application.state.container
+    async with LifespanManager(application):
+        assert container.refresher.running is True
+    assert container.refresher.running is False
+    assert container.proxy.listening is False

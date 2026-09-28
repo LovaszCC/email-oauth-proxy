@@ -80,6 +80,7 @@ Register it as a **desktop / native** application with redirect URI
 | `WEB_HOST` / `WEB_PORT` | `0.0.0.0` / `8080` | web UI |
 | `DATA_DIR` | `/data` | holds `proxy.db` (SQLite) – mount a volume |
 | `LOG_LEVEL` | `INFO` | |
+| `REFRESH_INTERVAL` | `3600` | seconds between background token refresh runs; every authorized account is refreshed before its access token expires, so inactive accounts stay valid |
 
 ## Security notes
 
@@ -92,6 +93,9 @@ Register it as a **desktop / native** application with redirect URI
 - The web UI uses a signed session cookie; put it behind HTTPS (reverse proxy)
   if it is reachable from outside your machine.
 - The proxy verifies the real server's TLS certificate with the system CA store.
+- Refresh failures are logged at ERROR (`docker compose logs`) and shown on the
+  account list. An expired client secret only needs the secret replaced on the
+  Edit page; a revoked grant (`invalid_grant`) needs *Authorize* again.
 
 ## Development
 

@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     web_port: int = 8080
     data_dir: Path = Path("/data")
     log_level: str = "INFO"
+    refresh_interval: int = 3600  # seconds between background token refresh runs
 
     @property
     def database_url(self) -> str:

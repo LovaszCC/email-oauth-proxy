@@ -15,6 +15,7 @@ def test_defaults_and_required(monkeypatch):
     assert s.imap_port == 1993
     assert s.web_port == 8080
     assert s.data_dir == Path("/data")
+    assert s.refresh_interval == 3600
     assert s.database_url == "sqlite+aiosqlite:////data/proxy.db"
 
 
