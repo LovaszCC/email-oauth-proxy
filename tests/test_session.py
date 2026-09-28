@@ -231,3 +231,18 @@ async def test_stop_disconnects_active_clients(proxy):
     assert await asyncio.wait_for(reader.read(), 1) == b""
     assert server.listening is False
     writer.close()
+
+
+async def test_client_eof_before_login_ends_session(proxy):
+    server, _ = proxy
+    reader, writer = await asyncio.open_connection("127.0.0.1", server.port)
+    await reader.readline()
+    assert server.active_clients == 1
+    writer.close()
+    await writer.wait_closed()
+    for _ in range(20):
+        if server.active_clients == 0:
+            break
+        await asyncio.sleep(0.01)
+    assert server.active_clients == 0
+    assert server.listening is True

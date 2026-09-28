@@ -93,6 +93,10 @@ class ImapProxyServer:
         return self._server is not None and self._server.is_serving()
 
     @property
+    def active_clients(self) -> int:
+        return len(self._tasks)
+
+    @property
     def port(self) -> int:
         if self._server is None:
             return 0
