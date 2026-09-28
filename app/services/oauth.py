@@ -16,13 +16,19 @@ DEFAULT_EXPIRES_IN = 3600
 
 
 class OAuthError(Exception):
-    def __init__(self, message: str) -> None:
+    def __init__(self, message: str, code: str | None = None) -> None:
         super().__init__(message)
         self.message = message
+        self.code = code
 
 
 class NeedsAuthorization(OAuthError):
     """No usable refresh token; the admin must authorize the account again."""
+
+
+class RefreshRejected(OAuthError):
+    """The provider rejected the refresh for a reason other than a revoked grant
+    (typically an expired/wrong client secret). Tokens are kept."""
 
 
 class ProviderUnavailable(OAuthError):
@@ -120,9 +126,12 @@ class OAuthService:
             account.last_error = f"Token refresh failed: {exc.message}"
             raise
         except OAuthError as exc:
-            account.clear_tokens()
+            if exc.code == "invalid_grant":
+                account.clear_tokens()  # also resets last_error, so set it afterwards
+                account.last_error = f"Token refresh rejected: {exc.message}"
+                raise NeedsAuthorization(exc.message, exc.code) from exc
             account.last_error = f"Token refresh rejected: {exc.message}"
-            raise NeedsAuthorization(exc.message) from exc
+            raise RefreshRejected(exc.message, exc.code) from exc
         self._store_tokens(account, payload)
         account.last_error = None
         return payload["access_token"]
@@ -149,7 +158,10 @@ class OAuthService:
             raise ProviderUnavailable(f"HTTP {response.status_code} from token endpoint")
         if response.status_code >= 400 or "error" in payload:
             message = payload.get("error_description") or payload.get("error")
-            raise OAuthError(message or f"HTTP {response.status_code} from token endpoint")
+            raise OAuthError(
+                message or f"HTTP {response.status_code} from token endpoint",
+                payload.get("error"),
+            )
         if "access_token" not in payload:
             raise OAuthError("Token response did not include an access token")
         return payload

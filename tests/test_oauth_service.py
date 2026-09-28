@@ -8,7 +8,13 @@ import pytest
 import respx
 
 from app.models import Account
-from app.services.oauth import NeedsAuthorization, OAuthError, OAuthService, ProviderUnavailable
+from app.services.oauth import (
+    NeedsAuthorization,
+    OAuthError,
+    OAuthService,
+    ProviderUnavailable,
+    RefreshRejected,
+)
 
 TOKEN_URL = "https://oauth2.googleapis.com/token"
 NOW = datetime(2026, 9, 28, 12, 0, 0)
@@ -292,3 +298,31 @@ def test_revoke(service, crypto):
     assert account.refresh_token_enc is None
     assert account.pending_state is None
     assert account.last_error is None
+
+
+@respx.mock
+async def test_refresh_invalid_client_keeps_tokens(service, crypto):
+    """An expired client secret must not throw away a valid refresh token."""
+    account = make_account(
+        crypto, refresh_token_enc=crypto.encrypt("RT"), access_token_enc=crypto.encrypt("AT")
+    )
+    respx.post(TOKEN_URL).mock(
+        return_value=httpx.Response(
+            401,
+            json={"error": "invalid_client", "error_description": "AADSTS7000222 expired"},
+        )
+    )
+    with pytest.raises(RefreshRejected, match="AADSTS7000222") as info:
+        await service.refresh(account)
+    assert info.value.code == "invalid_client"
+    assert crypto.decrypt(account.refresh_token_enc) == "RT"
+    assert account.last_error == "Token refresh rejected: AADSTS7000222 expired"
+
+
+@respx.mock
+async def test_refresh_4xx_without_error_code_keeps_tokens(service, crypto):
+    account = make_account(crypto, refresh_token_enc=crypto.encrypt("RT"))
+    respx.post(TOKEN_URL).mock(return_value=httpx.Response(403, text="forbidden"))
+    with pytest.raises(RefreshRejected, match="HTTP 403"):
+        await service.refresh(account)
+    assert account.refresh_token_enc is not None
