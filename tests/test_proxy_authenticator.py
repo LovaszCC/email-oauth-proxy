@@ -1,3 +1,4 @@
+import logging
 from datetime import timedelta
 
 import httpx
@@ -152,3 +153,32 @@ async def test_concurrent_logins_refresh_once(authenticator, db, crypto, connect
     await asyncio.gather(*(authenticator.authenticate("user@example.com") for _ in range(3)))
     assert route.call_count == 1
     assert [call[3] for call in connect.calls] == ["NEW", "NEW", "NEW"]
+
+
+@respx.mock
+async def test_refresh_rejected_keeps_tokens_and_logs(authenticator, db, crypto, caplog):
+    account_id = await create_account(db, crypto, refresh_token_enc=crypto.encrypt("RT"))
+    respx.post(TOKEN_URL).mock(
+        return_value=httpx.Response(
+            401, json={"error": "invalid_client", "error_description": "secret expired"}
+        )
+    )
+    with caplog.at_level(logging.WARNING), pytest.raises(LoginRejected) as info:
+        await authenticator.authenticate("user@example.com")
+    assert info.value.code == "AUTHENTICATIONFAILED"
+    assert info.value.message == "Token refresh rejected: secret expired"
+    account = await load(db, crypto, account_id)
+    assert account.refresh_token_enc is not None
+    assert account.last_error == "Token refresh rejected: secret expired"
+    assert "user@example.com" in caplog.text and "secret expired" in caplog.text
+
+
+async def test_rejections_are_logged(authenticator, db, crypto, connect, caplog):
+    await create_account(db, crypto)
+    with caplog.at_level(logging.WARNING):
+        with pytest.raises(LoginRejected):
+            await authenticator.authenticate("nobody@example.com")
+        with pytest.raises(LoginRejected):
+            await authenticator.authenticate("user@example.com")
+    assert "Unknown account" in caplog.text
+    assert "needs authorization" in caplog.text

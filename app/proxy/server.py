@@ -1,7 +1,6 @@
 import asyncio
 import contextlib
 import logging
-from collections import defaultdict
 from collections.abc import Awaitable, Callable
 
 from app.crypto import Cryptographer
@@ -15,7 +14,13 @@ from app.proxy.upstream import (
     connect_and_authenticate,
 )
 from app.services.accounts import AccountService
-from app.services.oauth import NeedsAuthorization, OAuthService, ProviderUnavailable
+from app.services.locks import AccountLocks
+from app.services.oauth import (
+    NeedsAuthorization,
+    OAuthService,
+    ProviderUnavailable,
+    RefreshRejected,
+)
 
 log = logging.getLogger(__name__)
 
@@ -31,32 +36,41 @@ class ProxyAuthenticator:
         crypto: Cryptographer,
         oauth: OAuthService,
         connect: ConnectFn = connect_and_authenticate,
+        locks: AccountLocks | None = None,
     ) -> None:
         self._db = db
         self._crypto = crypto
         self._oauth = oauth
         self._connect = connect
-        # One lock per account: mail clients open several connections at once and
-        # must not race each other through a refresh-token exchange.
-        self._locks: defaultdict[int, asyncio.Lock] = defaultdict(asyncio.Lock)
+        # Per-account locks (shared with the background refresher): mail clients open
+        # several connections at once and must not race through a refresh-token exchange.
+        self._locks = locks or AccountLocks()
 
     async def authenticate(self, username: str) -> UpstreamConnection:
         async with self._db.session() as session:
             accounts = AccountService(session, self._crypto)
             account = await accounts.get_by_email(username)
             if account is None:
+                log.warning("IMAP login for %s rejected: Unknown account", username)
                 raise LoginRejected("AUTHENTICATIONFAILED", "Unknown account")
-            async with self._locks[account.id]:
+            async with self._locks.get(account.id):
                 await session.refresh(account)  # another connection may have refreshed
                 try:
                     token = await self._oauth.get_valid_access_token(account)
-                except NeedsAuthorization:
+                except NeedsAuthorization as exc:
                     await session.commit()
+                    self._reject(account.email, f"needs authorization: {exc.message}")
                     raise LoginRejected(
                         "AUTHENTICATIONFAILED", "Account needs authorization in the web UI"
                     ) from None
-                except ProviderUnavailable:
+                except RefreshRejected as exc:
                     await session.commit()
+                    message = f"Token refresh rejected: {exc.message}"
+                    self._reject(account.email, message)
+                    raise LoginRejected("AUTHENTICATIONFAILED", message) from None
+                except ProviderUnavailable as exc:
+                    await session.commit()
+                    self._reject(account.email, f"token refresh failed: {exc.message}")
                     raise LoginRejected("UNAVAILABLE", "Token refresh failed") from None
                 await session.commit()  # persist a refreshed token before releasing the lock
             try:
@@ -66,15 +80,21 @@ class ProxyAuthenticator:
             except UpstreamConnectionError as exc:
                 account.last_error = f"Upstream connection failed: {exc}"
                 await session.commit()
+                self._reject(account.email, account.last_error)
                 raise LoginRejected("UNAVAILABLE", "Upstream connection failed") from exc
             except UpstreamAuthError as exc:
                 account.last_error = f"Upstream rejected authentication: {exc}"
                 await session.commit()
+                self._reject(account.email, account.last_error)
                 raise LoginRejected("AUTHENTICATIONFAILED", str(exc)) from exc
             account.last_activity = utcnow()
             account.last_error = None
             await session.commit()
             return connection
+
+    @staticmethod
+    def _reject(email: str, reason: str) -> None:
+        log.warning("IMAP login for %s rejected: %s", email, reason)
 
 
 class ImapProxyServer:
