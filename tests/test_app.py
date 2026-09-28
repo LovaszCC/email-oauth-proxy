@@ -36,3 +36,23 @@ async def test_lifespan_starts_and_stops_refresher(app_settings):
         assert container.refresher.running is True
     assert container.refresher.running is False
     assert container.proxy.listening is False
+
+
+async def test_handler_removed_after_lifespan(app_settings):
+    import logging
+
+    from asgi_lifespan import LifespanManager
+
+    from app.services.logs import BufferHandler
+
+    root = logging.getLogger()
+    before = [h for h in root.handlers if isinstance(h, BufferHandler)]
+    application = create_app(app_settings)
+    async with LifespanManager(application):
+        during = [h for h in root.handlers if isinstance(h, BufferHandler)]
+        assert len(during) == len(before) + 1
+        logging.getLogger("app.test").warning("captured while running")
+    after = [h for h in root.handlers if isinstance(h, BufferHandler)]
+    assert after == before
+    messages = [e.message for e in application.state.container.logs.entries()]
+    assert "captured while running" in messages

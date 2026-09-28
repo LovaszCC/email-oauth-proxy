@@ -5,6 +5,7 @@ import httpx
 from app.crypto import Cryptographer
 from app.db import Database
 from app.proxy.server import ImapProxyServer
+from app.services.logs import LogBuffer
 from app.services.oauth import OAuthService
 from app.services.refresh import TokenRefresher
 from app.settings import Settings
@@ -19,3 +20,4 @@ class AppState:
     oauth: OAuthService
     proxy: ImapProxyServer
     refresher: TokenRefresher
+    logs: LogBuffer

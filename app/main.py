@@ -12,12 +12,13 @@ from app.crypto import Cryptographer
 from app.db import Database
 from app.proxy.server import ImapProxyServer, ProxyAuthenticator
 from app.services.locks import AccountLocks
+from app.services.logs import LogBuffer, install_log_buffer, uninstall_log_buffer
 from app.services.oauth import OAuthService
 from app.services.refresh import TokenRefresher
 from app.settings import Settings
 from app.state import AppState
 from app.web.deps import NotAuthenticated
-from app.web.routers import accounts, auth, authorize, health
+from app.web.routers import accounts, auth, authorize, health, logs
 from app.web.templating import STATIC_DIR
 
 log = logging.getLogger(__name__)
@@ -36,10 +37,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ProxyAuthenticator(db, crypto, oauth, locks=locks),
     )
     refresher = TokenRefresher(db, crypto, oauth, locks, interval=settings.refresh_interval)
-    state = AppState(settings, db, crypto, http, oauth, proxy, refresher)
+    log_buffer = LogBuffer(settings.log_buffer_size)
+    state = AppState(settings, db, crypto, http, oauth, proxy, refresher, log_buffer)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
+        handler = install_log_buffer(log_buffer, settings.log_level)
         settings.data_dir.mkdir(parents=True, exist_ok=True)
         await db.create_all()
         await proxy.start()
@@ -51,6 +54,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             await proxy.stop()
             await http.aclose()
             await db.dispose()
+            uninstall_log_buffer(handler)
 
     app = FastAPI(title="Email OAuth2 Proxy", lifespan=lifespan, docs_url=None, redoc_url=None)
     app.state.container = state
@@ -60,6 +64,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(health.router)
     app.include_router(accounts.router)
     app.include_router(authorize.router)
+    app.include_router(logs.router)
 
     @app.exception_handler(NotAuthenticated)
     async def _redirect_to_login(request: Request, exc: NotAuthenticated):

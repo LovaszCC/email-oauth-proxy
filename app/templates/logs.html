@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block title %}Logs – Email OAuth2 Proxy{% endblock %}
+{% block head %}{% if refresh %}<meta http-equiv="refresh" content="10">{% endif %}{% endblock %}
+{% block content %}
+<h2>Logs</h2>
+<form method="get" action="/logs" class="grid">
+  <label>Level
+    <select name="level">
+      {% for lvl in levels %}<option value="{{ lvl }}" {% if values.get("level", "INFO") == lvl %}selected{% endif %}>{{ lvl }}+</option>{% endfor %}
+    </select>
+    {% if errors.get("level") %}<small class="error">{{ errors["level"] }}</small>{% endif %}
+  </label>
+  <label>Search <input type="text" name="q" value="{{ values.get('q', '') }}" placeholder="email, logger, text"></label>
+  <label>Rows <input type="number" name="limit" value="{{ values.get('limit', 200) }}" min="1" max="1000">
+    {% if errors.get("limit") %}<small class="error">{{ errors["limit"] }}</small>{% endif %}
+  </label>
+  <label><input type="checkbox" name="refresh" {% if refresh %}checked{% endif %}> Auto-refresh (10 s)</label>
+  <button type="submit">Apply</button>
+</form>
+{% if logs %}
+<p><small>Showing {{ logs.count }} of {{ logs.buffered }} buffered lines (capacity {{ logs.capacity }}, newest first, times in UTC). Lines are lost on restart – <code>docker compose logs</code> keeps the full history.</small></p>
+<table>
+  <thead><tr><th>Time</th><th>Level</th><th>Logger</th><th>Message</th></tr></thead>
+  <tbody>
+  {% for e in logs.entries %}
+    <tr class="level-{{ e.level | lower }}">
+      <td><small>{{ e.time.strftime("%Y-%m-%d %H:%M:%S") }}</small></td>
+      <td><mark class="{{ 'err' if e.level in ('ERROR', 'CRITICAL') else 'warn' if e.level == 'WARNING' else 'ok' }}">{{ e.level }}</mark></td>
+      <td><small>{{ e.logger }}</small></td>
+      <td><pre class="logmsg">{{ e.message }}</pre></td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+{% endblock %}

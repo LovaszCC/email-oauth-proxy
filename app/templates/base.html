@@ -9,13 +9,16 @@
     mark.ok { background: #d1fae5; } mark.warn { background: #fef3c7; } mark.err { background: #fee2e2; }
     .flash-success { border-left: 4px solid #10b981; } .flash-error { border-left: 4px solid #ef4444; }
     small.error { color: #b91c1c; }
+    pre.logmsg { white-space: pre-wrap; margin: 0; font-size: .8rem; background: none; padding: 0; }
   </style>
+  {% block head %}{% endblock %}
 </head>
 <body>
   <nav class="container">
     <ul><li><strong><a href="/">Email OAuth2 Proxy</a></strong></li></ul>
     <ul>
       {% if admin %}
+      <li><a href="/logs">Logs</a></li>
       <li><a href="/accounts/new">Add account</a></li>
       <li><form method="post" action="/logout"><button class="secondary outline">Log out</button></form></li>
       {% endif %}

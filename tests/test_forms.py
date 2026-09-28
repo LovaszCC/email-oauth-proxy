@@ -1,4 +1,12 @@
-from app.web.forms import AccountForm, AuthorizeCompleteForm, LoginForm, parse_form
+import logging
+
+from app.web.forms import (
+    AccountForm,
+    AuthorizeCompleteForm,
+    LogFilterForm,
+    LoginForm,
+    parse_form,
+)
 
 VALID = {
     "email": " User@Example.com ",
@@ -57,3 +65,16 @@ def test_login_and_complete_forms():
     assert (form.username, form.password) == ("a", "b")
     _, errors = parse_form(AuthorizeCompleteForm, {"redirect_url": "  "})
     assert "redirect_url" in errors
+
+
+def test_log_filter_form_defaults_and_bounds():
+    form, errors = parse_form(LogFilterForm, {})
+    assert errors == {}
+    assert (form.level, form.q, form.limit, form.refresh) == ("INFO", "", 200, False)
+    assert form.min_level == logging.INFO
+    form, _ = parse_form(
+        LogFilterForm, {"level": "ERROR", "q": " x ", "limit": "5", "refresh": "on"}
+    )
+    assert form.min_level == logging.ERROR and form.q == "x" and form.refresh is True
+    _, errors = parse_form(LogFilterForm, {"level": "TRACE", "limit": "0"})
+    assert set(errors) == {"level", "limit"}

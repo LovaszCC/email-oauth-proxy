@@ -5,6 +5,7 @@ from pydantic import BaseModel
 
 from app.models import Account, AccountStatus
 from app.providers import PROVIDERS
+from app.services.logs import LogEntry
 
 
 class HealthDto(BaseModel):
@@ -45,3 +46,21 @@ class AccountDto(BaseModel):
             last_error=account.last_error,
             has_pending_authorization=account.pending_state is not None,
         )
+
+
+class LogEntryDto(BaseModel):
+    time: datetime
+    level: str
+    logger: str
+    message: str
+
+    @classmethod
+    def from_entry(cls, entry: LogEntry) -> "LogEntryDto":
+        return cls(time=entry.time, level=entry.level, logger=entry.logger, message=entry.message)
+
+
+class LogsDto(BaseModel):
+    count: int
+    buffered: int
+    capacity: int
+    entries: list[LogEntryDto]

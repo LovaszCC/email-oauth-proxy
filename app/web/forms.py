@@ -1,3 +1,4 @@
+import logging
 import re
 from collections.abc import Mapping
 from typing import Literal
@@ -80,3 +81,16 @@ def parse_form[T: BaseModel](
             field = ".".join(str(part) for part in error["loc"]) or "form"
             errors.setdefault(field, error["msg"].removeprefix("Value error, "))
         return None, errors
+
+
+class LogFilterForm(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
+    q: str = ""
+    limit: int = Field(200, ge=1, le=1000)
+    refresh: bool = False
+
+    @property
+    def min_level(self) -> int:
+        return logging.getLevelName(self.level)
