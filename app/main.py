@@ -15,7 +15,7 @@ from app.services.oauth import OAuthService
 from app.settings import Settings
 from app.state import AppState
 from app.web.deps import NotAuthenticated
-from app.web.routers import accounts, auth, health
+from app.web.routers import accounts, auth, authorize, health
 from app.web.templating import STATIC_DIR
 
 log = logging.getLogger(__name__)
@@ -51,6 +51,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth.router)
     app.include_router(health.router)
     app.include_router(accounts.router)
+    app.include_router(authorize.router)
 
     @app.exception_handler(NotAuthenticated)
     async def _redirect_to_login(request: Request, exc: NotAuthenticated):
