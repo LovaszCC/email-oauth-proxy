@@ -1,46 +1,82 @@
 {% extends "base.html" %}
+{% from "_ui.html" import icon, status_badge, page_header %}
+{% block title %}Authorize {{ account.email }} – Email OAuth2 Proxy{% endblock %}
 {% block content %}
-<h2>Authorize {{ account.email }}</h2>
-<p>Provider: {{ account.provider_name }} · Status:
-  {% if account.status == "authorized" %}<mark class="ok">Authorized</mark>
-  {% elif account.status == "error" %}<mark class="err">Error</mark> <small>{{ account.last_error }}</small>
-  {% else %}<mark class="warn">Needs authorization</mark>{% endif %}
-</p>
-{% if error %}<article class="flash flash-error">{{ error }}</article>{% endif %}
+{% set started = auth_url or account.has_pending_authorization %}
+<div class="content-narrow">
+{% call page_header("Authorize account", account.email ~ " · " ~ account.provider_name) %}
+  {{ status_badge(account.status) }}
+{% endcall %}
 
-{% if auth_url %}
-<article>
-  <h3>Step 1 – log in with the provider</h3>
-  <p>Open this link in your browser and sign in to <strong>{{ account.email }}</strong>:</p>
-  <p><a href="{{ auth_url }}" target="_blank" rel="noopener">{{ auth_url }}</a></p>
-  <p><small>After login the browser is sent to <code>{{ account.redirect_uri }}</code>. The page will most likely fail to load – that is expected. Copy the full address from the address bar.</small></p>
-</article>
-{% endif %}
+{% if account.last_error %}<div class="alert alert-destructive" style="margin-bottom:1.25rem">{{ icon("alert") }}<span>{{ account.last_error }}</span></div>{% endif %}
+{% if error %}<div class="alert alert-destructive" style="margin-bottom:1.25rem">{{ icon("alert") }}<span>{{ error }}</span></div>{% endif %}
 
-{% if auth_url or account.has_pending_authorization %}
-<article>
-  <h3>Step 2 – paste the redirect URL</h3>
-  <form method="post" action="/accounts/{{ account.id }}/authorize/complete">
-    <label>Redirect URL
-      <textarea name="redirect_url" rows="3" placeholder="{{ account.redirect_uri }}/?code=...&state=..." required {% if errors.get("redirect_url") %}aria-invalid="true"{% endif %}></textarea>
-      {% if errors.get("redirect_url") %}<small class="error">{{ errors["redirect_url"] }}</small>{% endif %}
-    </label>
-    <button type="submit">Complete authorization</button>
-  </form>
-</article>
-<form method="post" action="/accounts/{{ account.id }}/authorize/start">
-  <button class="secondary outline">Restart authorization</button>
-</form>
-{% else %}
-<form method="post" action="/accounts/{{ account.id }}/authorize/start">
-  <button>Start authorization</button>
-</form>
-{% endif %}
+<div class="card">
+  <div class="card-body">
+    <ol class="steps">
+      <li class="{{ 'done' if started else '' }}">
+        <h3>Generate the sign-in link</h3>
+        <p class="muted">Creates a one-time link for {{ account.provider_name }}.</p>
+        <div class="step-body">
+          <form method="post" action="/accounts/{{ account.id }}/authorize/start">
+            {% if started %}
+            <button class="btn btn-outline btn-sm" type="submit">{{ icon("refresh") }}Restart authorization</button>
+            {% else %}
+            <button class="btn btn-primary" type="submit">{{ icon("key") }}Start authorization</button>
+            {% endif %}
+          </form>
+        </div>
+      </li>
+
+      <li class="{{ '' if started else 'pending' }}">
+        <h3>Sign in with the provider</h3>
+        <p class="muted">Open the link in your browser and sign in as <strong>{{ account.email }}</strong>.</p>
+        {% if auth_url %}
+        <div class="step-body">
+          <div class="input-group">
+            <input class="input mono" id="auth-url" value="{{ auth_url }}" readonly aria-label="Authorization link">
+            <button class="btn btn-outline" type="button" data-copy="auth-url">{{ icon("copy") }}<span>Copy</span></button>
+            <a class="btn btn-primary" href="{{ auth_url }}" target="_blank" rel="noopener">{{ icon("external") }}Open</a>
+          </div>
+          <div class="alert alert-info">{{ icon("alert") }}<span>After signing in the browser is sent to <code>{{ account.redirect_uri }}</code> and the page will most likely fail to load – that is expected. Copy the full address from the address bar.</span></div>
+        </div>
+        {% elif started %}
+        <p class="hint" style="margin-top:0.5rem">The link was shown when the authorization was started. Use <em>Restart authorization</em> to get a new one.</p>
+        {% endif %}
+      </li>
+
+      <li class="{{ '' if started else 'pending' }}">
+        <h3>Paste the address you were sent to</h3>
+        <p class="muted">The proxy exchanges the code in it for tokens.</p>
+        {% if started %}
+        <div class="step-body">
+          <form method="post" action="/accounts/{{ account.id }}/authorize/complete">
+            <div class="field">
+              <label class="label sr-only" for="redirect-url">Redirect URL</label>
+              <textarea class="textarea" id="redirect-url" name="redirect_url" rows="3" placeholder="{{ account.redirect_uri }}/?code=...&state=..." required {% if errors.get("redirect_url") %}aria-invalid="true"{% endif %}></textarea>
+              {% if errors.get("redirect_url") %}<span class="field-error">{{ errors["redirect_url"] }}</span>{% endif %}
+            </div>
+            <div class="form-actions" style="justify-content:flex-start">
+              <button class="btn btn-primary" type="submit">Complete authorization</button>
+            </div>
+          </form>
+        </div>
+        {% endif %}
+      </li>
+    </ol>
+  </div>
+</div>
 
 {% if account.status != "needs_authorization" %}
-<form method="post" action="/accounts/{{ account.id }}/revoke" onsubmit="return confirm('Remove stored tokens?')">
-  <button class="outline contrast">Remove stored tokens</button>
-</form>
+<div class="card card-danger">
+  <div class="card-body">
+    <div><h3>Remove stored tokens</h3><p class="muted small">The account stops working until it is authorized again.</p></div>
+    <form method="post" action="/accounts/{{ account.id }}/revoke" onsubmit="return confirm('Remove stored tokens?')">
+      <button class="btn btn-destructive btn-sm" type="submit">{{ icon("trash") }}Remove stored tokens</button>
+    </form>
+  </div>
+</div>
 {% endif %}
-<p><a href="/">Back to accounts</a></p>
+<p style="margin-top:1.25rem"><a class="btn btn-ghost btn-sm" href="/">&larr; Back to accounts</a></p>
+</div>
 {% endblock %}

@@ -26,3 +26,27 @@ async def test_status_badges(admin):
     await admin.post("/accounts", data=VALID)
     body = (await admin.get("/")).text
     assert 'class="badge badge-warning"' in body and "Needs authorization" in body
+
+
+async def test_authorize_page_steps_and_copy_button(admin, app):
+    from tests.test_web_authorize import create
+
+    account_id = await create(admin, app)
+    body = (await admin.post(f"/accounts/{account_id}/authorize/start")).text
+    assert 'class="steps"' in body
+    assert 'data-copy="auth-url"' in body
+    assert 'id="auth-url"' in body
+
+
+async def test_account_form_sections(admin):
+    body = (await admin.get("/accounts/new")).text
+    assert body.count('class="card') >= 3  # account, server, oauth client sections
+
+
+async def test_logs_page_uses_log_view(admin):
+    import logging
+
+    logging.getLogger("app.test.ui").warning("styled")
+    body = (await admin.get("/logs")).text
+    assert 'class="table log-table"' in body
+    assert 'class="badge badge-warning"' in body

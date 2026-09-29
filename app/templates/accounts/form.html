@@ -1,38 +1,64 @@
 {% extends "base.html" %}
-{% macro field(name, label, type="text", required=True) -%}
-<label>{{ label }}
-  <input type="{{ type }}" name="{{ name }}" id="f-{{ name }}" value="{{ values.get(name, '') }}" {% if required %}required{% endif %}
-         {% if errors.get(name) %}aria-invalid="true"{% endif %}>
-  {% if errors.get(name) %}<small class="error">{{ errors[name] }}</small>{% endif %}
-</label>
-{%- endmacro %}
+{% from "_ui.html" import field, page_header %}
+{% block title %}{{ "Edit account" if is_edit else "Add account" }} – Email OAuth2 Proxy{% endblock %}
 {% block content %}
-<h2>{{ "Edit account" if is_edit else "Add account" }}</h2>
+<div class="content-narrow">
+{{ page_header("Edit account" if is_edit else "Add account",
+               values.get("email") if is_edit else "Configure a mailbox and its OAuth 2.0 client") }}
 <form method="post" action="{{ action }}">
-  {{ field("email", "Email address (IMAP username)", "email") }}
-  <label>Provider
-    <select name="provider" id="f-provider">
-      {% for key, preset in presets.items() %}
-      <option value="{{ key }}" {% if values.get("provider") == key %}selected{% endif %}>{{ preset.name }}</option>
-      {% endfor %}
-    </select>
-    {% if errors.get("provider") %}<small class="error">{{ errors["provider"] }}</small>{% endif %}
-  </label>
-  <div class="grid">
-    {{ field("imap_host", "IMAP server") }}
-    {{ field("imap_port", "IMAP port (TLS)", "number") }}
+  <div class="card">
+    <div class="card-header"><h2>Account</h2><p>The email address is the IMAP username your mail client logs in with.</p></div>
+    <div class="card-body">
+      {{ field("email", "Email address", values, errors, "email", placeholder="user@example.com") }}
+      <div class="field">
+        <label class="label" for="f-provider">Provider</label>
+        <select class="select" name="provider" id="f-provider">
+          {% for key, preset in presets.items() %}
+          <option value="{{ key }}" {% if values.get("provider") == key %}selected{% endif %}>{{ preset.name }}</option>
+          {% endfor %}
+        </select>
+        {% if errors.get("provider") %}<span class="field-error">{{ errors["provider"] }}</span>
+        {% else %}<span class="hint">Presets fill in the server and OAuth endpoints below.</span>{% endif %}
+      </div>
+    </div>
   </div>
-  {{ field("client_id", "Client ID") }}
-  <label>Client secret{% if has_secret %} <small>(leave blank to keep the stored secret)</small>{% endif %}
-    <input type="password" name="client_secret" id="f-client_secret" value="" autocomplete="new-password">
-  </label>
-  {{ field("permission_url", "Authorization URL") }}
-  {{ field("token_url", "Token URL") }}
-  {{ field("scope", "Scope") }}
-  {{ field("redirect_uri", "Redirect URI (as registered with the provider)") }}
-  <label><input type="checkbox" name="use_pkce" id="f-use_pkce" {% if values.get("use_pkce") in (True, "on", "true") %}checked{% endif %}> Use PKCE</label>
-  <button type="submit">{{ "Save" if is_edit else "Create and authorize" }}</button>
+
+  <div class="card">
+    <div class="card-header"><h2>IMAP server</h2><p>The real mail server; the proxy connects with implicit TLS.</p></div>
+    <div class="card-body">
+      <div class="grid-2">
+        {{ field("imap_host", "Host", values, errors) }}
+        {{ field("imap_port", "Port", values, errors, "number") }}
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header"><h2>OAuth client</h2><p>Credentials of the app registered with the provider.</p></div>
+    <div class="card-body">
+      {{ field("client_id", "Client ID", values, errors) }}
+      <div class="field">
+        <label class="label" for="f-client_secret">Client secret</label>
+        <input class="input" type="password" name="client_secret" id="f-client_secret" value="" autocomplete="new-password">
+        <span class="hint">{% if has_secret %}A secret is stored – leave blank to keep the stored secret.{% else %}Leave blank if the client has no secret.{% endif %}</span>
+      </div>
+      {{ field("permission_url", "Authorization URL", values, errors) }}
+      {{ field("token_url", "Token URL", values, errors) }}
+      {{ field("scope", "Scope", values, errors, hint="Space-separated.") }}
+      {{ field("redirect_uri", "Redirect URI", values, errors, hint="Must match the redirect URI registered with the provider.") }}
+      <label class="checkbox" for="f-use_pkce">
+        <input type="checkbox" name="use_pkce" id="f-use_pkce" {% if values.get("use_pkce") in (True, "on", "true") %}checked{% endif %}>
+        Use PKCE (S256)
+      </label>
+    </div>
+  </div>
+
+  <div class="form-actions">
+    <a class="btn btn-outline" href="/">Cancel</a>
+    <button class="btn btn-primary" type="submit">{{ "Save changes" if is_edit else "Create and authorize" }}</button>
+  </div>
 </form>
+</div>
 <script>
   const presets = {{ presets | tojson }};
   document.getElementById("f-provider").addEventListener("change", (event) => {
