@@ -106,3 +106,74 @@ def test_install_lowers_root_level():
             root.removeHandler(extra)
         root.setLevel(previous)
     assert handler not in root.handlers
+
+
+def test_entries_safe_while_another_thread_appends():
+    """aiosqlite logs from its worker thread; reading must not raise 'deque mutated'."""
+    import threading
+
+    buffer = LogBuffer(capacity=50)
+    stop = threading.Event()
+
+    def writer():
+        i = 0
+        while not stop.is_set():
+            buffer.append(entry("DEBUG", f"sql {i}"))
+            i += 1
+
+    thread = threading.Thread(target=writer)
+    thread.start()
+    try:
+        for _ in range(3000):
+            buffer.entries(query="sql", limit=50)
+    finally:
+        stop.set()
+        thread.join()
+
+
+def test_emit_never_raises_into_the_caller(capsys):
+    buffer = LogBuffer()
+    handler = BufferHandler(buffer)
+    logger = logging.getLogger("app.test.badcall")
+    logger.propagate = False
+    logger.addHandler(handler)
+    try:
+        logger.error("%s %s", "only-one-arg")  # malformed call from some library
+    finally:
+        logger.removeHandler(handler)
+    assert buffer.entries() == []
+    assert "Logging error" in capsys.readouterr().err
+
+
+def test_handler_skips_sql_loggers():
+    buffer = LogBuffer()
+    handler = BufferHandler(buffer)
+    for name in ("aiosqlite", "sqlalchemy.pool.impl.QueuePool"):
+        logger = logging.getLogger(name)
+        logger.propagate = False
+        logger.addHandler(handler)
+        try:
+            logger.warning("INSERT INTO accounts ... ('secret', 'verifier')")
+        finally:
+            logger.removeHandler(handler)
+    assert buffer.entries() == []
+
+
+def test_install_captures_uvicorn_error_logger():
+    """uvicorn's dictConfig stops propagation, so the handler must be attached explicitly."""
+    import logging.config
+
+    from uvicorn.config import LOGGING_CONFIG
+
+    logging.config.dictConfig(LOGGING_CONFIG)
+    buffer = LogBuffer()
+    handler = install_log_buffer(buffer, "INFO")
+    try:
+        logging.getLogger("uvicorn.error").error("Exception in ASGI application")
+        logging.getLogger("uvicorn.access").info('"GET / HTTP/1.1" 200')
+    finally:
+        uninstall_log_buffer(handler)
+    assert [e.message for e in buffer.entries()] == ["Exception in ASGI application"]
+    assert handler not in logging.getLogger("uvicorn").handlers
+    logging.getLogger("uvicorn.error").error("after uninstall")
+    assert len(buffer) == 1
