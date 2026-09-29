@@ -1,0 +1,44 @@
+{% macro icon(name) -%}
+<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+{%- if name == "mail" %}<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>
+{%- elif name == "list" %}<path d="M3 5h.01M3 12h.01M3 19h.01M8 5h13M8 12h13M8 19h13"/>
+{%- elif name == "plus" %}<path d="M5 12h14M12 5v14"/>
+{%- elif name == "logs" %}<path d="M15 12h-5M15 8h-5M19 17V5a2 2 0 0 0-2-2H4"/><path d="M8 21h12a2 2 0 0 0 2-2v-1a1 1 0 0 0-1-1H11a1 1 0 0 0-1 1v1a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v2a1 1 0 0 0 1 1h3"/>
+{%- elif name == "logout" %}<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/>
+{%- elif name == "key" %}<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/>
+{%- elif name == "edit" %}<path d="M12 20h9M16.5 3.5a2.1 2.1 0 1 1 3 3L7 19l-4 1 1-4Z"/>
+{%- elif name == "trash" %}<path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+{%- elif name == "copy" %}<rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+{%- elif name == "external" %}<path d="M15 3h6v6M10 14 21 3M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>
+{%- elif name == "alert" %}<circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
+{%- elif name == "refresh" %}<path d="M3 12a9 9 0 0 1 15-6.7L21 8M21 3v5h-5M21 12a9 9 0 0 1-15 6.7L3 16M8 16H3v5"/>
+{%- elif name == "inbox" %}<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/>
+{%- endif %}
+</svg>
+{%- endmacro %}
+
+{% macro status_badge(status) -%}
+{%- if status == "authorized" %}<span class="badge badge-success">Authorized</span>
+{%- elif status == "error" %}<span class="badge badge-destructive">Error</span>
+{%- else %}<span class="badge badge-warning">Needs authorization</span>{% endif -%}
+{%- endmacro %}
+
+{% macro field(name, label, values, errors, type="text", required=True, hint=None, placeholder="") -%}
+<div class="field">
+  <label class="label" for="f-{{ name }}">{{ label }}</label>
+  <input class="input" type="{{ type }}" name="{{ name }}" id="f-{{ name }}" value="{{ values.get(name, '') }}"
+         {% if placeholder %}placeholder="{{ placeholder }}"{% endif %} {% if required %}required{% endif %}
+         {% if errors.get(name) %}aria-invalid="true"{% endif %}>
+  {% if errors.get(name) %}<span class="field-error">{{ errors[name] }}</span>{% elif hint %}<span class="hint">{{ hint }}</span>{% endif %}
+</div>
+{%- endmacro %}
+
+{% macro page_header(title, subtitle=None) -%}
+<div class="page-header">
+  <div>
+    <h1>{{ title }}</h1>
+    {% if subtitle %}<p>{{ subtitle }}</p>{% endif %}
+  </div>
+  {% if caller %}<div class="row">{{ caller() }}</div>{% endif %}
+</div>
+{%- endmacro %}

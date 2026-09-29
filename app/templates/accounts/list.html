@@ -1,35 +1,54 @@
 {% extends "base.html" %}
+{% from "_ui.html" import icon, status_badge, page_header %}
+{% block title %}Accounts – Email OAuth2 Proxy{% endblock %}
 {% block content %}
-<h2>Accounts</h2>
+{% call page_header("Accounts", "Mailboxes proxied over IMAP with OAuth 2.0") %}
+  <a class="btn btn-primary" href="/accounts/new">{{ icon("plus") }}Add account</a>
+{% endcall %}
+
 {% if not accounts %}
-<p>No accounts yet. <a href="/accounts/new">Add the first one</a>.</p>
+<div class="card empty">
+  <span class="empty-icon">{{ icon("inbox") }}</span>
+  <h2>No accounts yet</h2>
+  <p>Add a mailbox, enter its OAuth client credentials and authorize it once.</p>
+  <a class="btn btn-primary" href="/accounts/new">{{ icon("plus") }}Add the first one</a>
+</div>
 {% else %}
-<table>
-  <thead>
-    <tr><th>Email</th><th>Provider</th><th>Status</th><th>Token expires</th><th>Last login</th><th></th></tr>
-  </thead>
-  <tbody>
-  {% for a in accounts %}
-    <tr>
-      <td>{{ a.email }}<br><small>{{ a.imap_host }}:{{ a.imap_port }}</small></td>
-      <td>{{ a.provider_name }}</td>
-      <td>
-        {% if a.status == "authorized" %}<mark class="ok">Authorized</mark>
-        {% elif a.status == "error" %}<mark class="err">Error</mark><br><small>{{ a.last_error }}</small>
-        {% else %}<mark class="warn">Needs authorization</mark>{% endif %}
-      </td>
-      <td>{{ a.access_token_expiry.strftime("%Y-%m-%d %H:%M") ~ " UTC" if a.access_token_expiry else "–" }}</td>
-      <td>{{ a.last_activity.strftime("%Y-%m-%d %H:%M") ~ " UTC" if a.last_activity else "never" }}</td>
-      <td>
-        <a href="/accounts/{{ a.id }}/authorize" role="button" class="outline">Authorize</a>
-        <a href="/accounts/{{ a.id }}/edit" role="button" class="outline secondary">Edit</a>
-        <form method="post" action="/accounts/{{ a.id }}/delete" style="display:inline" onsubmit="return confirm('Delete {{ a.email }}?')">
-          <button class="outline contrast">Delete</button>
-        </form>
-      </td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
+{% set authorized = accounts | selectattr("status", "equalto", "authorized") | list | length %}
+<div class="stats">
+  <div class="card stat"><div class="card-body"><div class="stat-label">Accounts</div><div class="stat-value">{{ accounts | length }}</div></div></div>
+  <div class="card stat"><div class="card-body"><div class="stat-label">Authorized</div><div class="stat-value">{{ authorized }}</div></div></div>
+  <div class="card stat"><div class="card-body"><div class="stat-label">Need attention</div><div class="stat-value">{{ accounts | length - authorized }}</div></div></div>
+</div>
+<div class="card card-flush">
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr><th>Account</th><th>Provider</th><th>Status</th><th>Token expires</th><th>Last login</th><th class="actions"><span class="sr-only">Actions</span></th></tr>
+      </thead>
+      <tbody>
+      {% for a in accounts %}
+        <tr>
+          <td><div class="cell-title">{{ a.email }}</div><div class="cell-sub mono">{{ a.imap_host }}:{{ a.imap_port }}</div></td>
+          <td><span class="badge badge-outline">{{ a.provider_name }}</span></td>
+          <td>
+            {{ status_badge(a.status) }}
+            {% if a.last_error %}<div class="cell-error" title="{{ a.last_error }}">{{ a.last_error }}</div>{% endif %}
+          </td>
+          <td class="muted">{{ a.access_token_expiry.strftime("%Y-%m-%d %H:%M") ~ " UTC" if a.access_token_expiry else "–" }}</td>
+          <td class="muted">{{ a.last_activity.strftime("%Y-%m-%d %H:%M") ~ " UTC" if a.last_activity else "never" }}</td>
+          <td class="actions">
+            <a class="btn btn-ghost btn-sm" href="/accounts/{{ a.id }}/authorize">{{ icon("key") }}Authorize</a>
+            <a class="btn btn-ghost btn-sm" href="/accounts/{{ a.id }}/edit">{{ icon("edit") }}Edit</a>
+            <form class="inline" method="post" action="/accounts/{{ a.id }}/delete" onsubmit="return confirm('Delete {{ a.email }}?')">
+              <button class="btn btn-ghost-destructive btn-sm" type="submit" aria-label="Delete {{ a.email }}">{{ icon("trash") }}</button>
+            </form>
+          </td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
 {% endif %}
 {% endblock %}

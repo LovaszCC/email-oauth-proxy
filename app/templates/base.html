@@ -1,34 +1,67 @@
+{% from "_ui.html" import icon %}
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Email OAuth2 Proxy{% endblock %}</title>
-  <link rel="stylesheet" href="/static/pico.min.css">
-  <style>
-    mark.ok { background: #d1fae5; } mark.warn { background: #fef3c7; } mark.err { background: #fee2e2; }
-    .flash-success { border-left: 4px solid #10b981; } .flash-error { border-left: 4px solid #ef4444; }
-    small.error { color: #b91c1c; }
-    pre.logmsg { white-space: pre-wrap; margin: 0; font-size: .8rem; background: none; padding: 0; }
-  </style>
+  <link rel="stylesheet" href="/static/app.css">
   {% block head %}{% endblock %}
 </head>
 <body>
-  <nav class="container">
-    <ul><li><strong><a href="/">Email OAuth2 Proxy</a></strong></li></ul>
-    <ul>
-      {% if admin %}
-      <li><a href="/logs">Logs</a></li>
-      <li><a href="/accounts/new">Add account</a></li>
-      <li><form method="post" action="/logout"><button class="secondary outline">Log out</button></form></li>
-      {% endif %}
-    </ul>
-  </nav>
-  <main class="container">
-    {% for item in flash_messages %}
-    <article class="flash flash-{{ item.category }}">{{ item.message }}</article>
-    {% endfor %}
+{% if flash_messages %}
+<div class="toasts">
+  {% for item in flash_messages %}
+  <div class="toast toast-{{ item.category }}" role="status">
+    <span>{{ item.message }}</span>
+    <button type="button" aria-label="Dismiss" data-dismiss>&times;</button>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% if admin %}
+{% set path = request.url.path %}
+<div class="app-shell">
+  <aside class="sidebar">
+    <a class="brand" href="/"><span class="brand-mark">{{ icon("mail") }}</span><span>OAuth2 Proxy</span></a>
+    <nav class="nav">
+      <span class="nav-label">Manage</span>
+      <a href="/" {% if path == "/" or (path.startswith("/accounts/") and path != "/accounts/new") %}aria-current="page"{% endif %}>{{ icon("list") }}Accounts</a>
+      <a href="/accounts/new" {% if path == "/accounts/new" %}aria-current="page"{% endif %}>{{ icon("plus") }}Add account</a>
+      <a href="/logs" {% if path == "/logs" %}aria-current="page"{% endif %}>{{ icon("logs") }}Logs</a>
+    </nav>
+    <form class="sidebar-footer" method="post" action="/logout">
+      <button class="btn btn-ghost btn-sm btn-block" type="submit">{{ icon("logout") }}Log out</button>
+    </form>
+  </aside>
+  <main class="content"><div class="content-inner">
     {% block content %}{% endblock %}
-  </main>
+  </div></main>
+</div>
+{% else %}
+<main class="auth-shell">
+  {% block auth %}{% endblock %}
+</main>
+{% endif %}
+<script>
+  document.querySelectorAll(".toast").forEach((toast) => {
+    const close = () => { toast.classList.add("hide"); setTimeout(() => toast.remove(), 300); };
+    toast.querySelector("[data-dismiss]").addEventListener("click", close);
+    setTimeout(close, 5000);
+  });
+  document.querySelectorAll("[data-copy]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const source = document.getElementById(button.dataset.copy);
+      const label = button.querySelector("span");
+      try {
+        await navigator.clipboard.writeText(source.value);
+      } catch {
+        source.select();
+        document.execCommand("copy");  // plain-http fallback: clipboard API needs HTTPS
+      }
+      if (label) { const old = label.textContent; label.textContent = "Copied"; setTimeout(() => (label.textContent = old), 1500); }
+    });
+  });
+</script>
 </body>
 </html>

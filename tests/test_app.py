@@ -23,8 +23,10 @@ def test_create_app_reads_settings_from_env(monkeypatch, fernet_key, tmp_path):
 
 
 async def test_static_served(client):
-    response = await client.get("/static/pico.min.css")
+    response = await client.get("/static/app.css")
     assert response.status_code == 200
+    assert "--primary" in response.text
+    assert (await client.get("/static/pico.min.css")).status_code == 404
 
 
 async def test_lifespan_starts_and_stops_refresher(app_settings):
