@@ -24,7 +24,7 @@
   <div class="table-wrap">
     <table class="table">
       <thead>
-        <tr><th>Account</th><th>Provider</th><th>Status</th><th>Token expires</th><th>Last login</th><th class="actions"><span class="sr-only">Actions</span></th></tr>
+        <tr><th class="col-account">Account</th><th>Provider</th><th>Status</th><th>Activity</th><th class="actions"><span class="sr-only">Actions</span></th></tr>
       </thead>
       <tbody>
       {% for a in accounts %}
@@ -35,13 +35,15 @@
             {{ status_badge(a.status) }}
             {% if a.last_error %}<div class="cell-error" title="{{ a.last_error }}">{{ a.last_error }}</div>{% endif %}
           </td>
-          <td class="muted">{{ a.access_token_expiry.strftime("%Y-%m-%d %H:%M") ~ " UTC" if a.access_token_expiry else "–" }}</td>
-          <td class="muted">{{ a.last_activity.strftime("%Y-%m-%d %H:%M") ~ " UTC" if a.last_activity else "never" }}</td>
+          <td class="cell-sub" style="white-space:nowrap">
+            <div>Token: {{ a.access_token_expiry.strftime("%Y-%m-%d %H:%M") ~ " UTC" if a.access_token_expiry else "–" }}</div>
+            <div>Login: {{ a.last_activity.strftime("%Y-%m-%d %H:%M") ~ " UTC" if a.last_activity else "never" }}</div>
+          </td>
           <td class="actions">
-            <a class="btn btn-ghost btn-sm" href="/accounts/{{ a.id }}/authorize">{{ icon("key") }}Authorize</a>
-            <a class="btn btn-ghost btn-sm" href="/accounts/{{ a.id }}/edit">{{ icon("edit") }}Edit</a>
+            <a class="btn btn-outline btn-sm" href="/accounts/{{ a.id }}/authorize">{{ icon("key") }}Authorize</a>
+            <a class="btn btn-ghost btn-sm btn-icon" href="/accounts/{{ a.id }}/edit" title="Edit" aria-label="Edit {{ a.email }}">{{ icon("edit") }}</a>
             <form class="inline" method="post" action="/accounts/{{ a.id }}/delete" onsubmit="return confirm('Delete {{ a.email }}?')">
-              <button class="btn btn-ghost-destructive btn-sm" type="submit" aria-label="Delete {{ a.email }}">{{ icon("trash") }}</button>
+              <button class="btn btn-ghost-destructive btn-sm btn-icon" type="submit" title="Delete" aria-label="Delete {{ a.email }}">{{ icon("trash") }}</button>
             </form>
           </td>
         </tr>

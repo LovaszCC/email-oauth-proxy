@@ -35,7 +35,7 @@
 <div class="card card-flush">
   <div class="table-wrap">
     <table class="table log-table">
-      <thead><tr><th>Time</th><th>Level</th><th>Logger</th><th>Message</th></tr></thead>
+      <thead><tr><th>Time</th><th>Level</th><th>Logger</th><th class="col-message">Message</th></tr></thead>
       <tbody>
       {% for e in logs.entries %}
         <tr class="level-{{ e.level | lower }}">
